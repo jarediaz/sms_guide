@@ -1,0 +1,174 @@
+## Overview
+
+Welcome! Thank you for your interest in the type template for Stop Making Sense Tasks on PCIBex. This controller was built off of the original DashedSentence Controller by PCIBex.
+
+This website is intended to serve as a guide to help users correctly implement our new StopMakingSense controller into their own experiments.
+
+::: callout-warning
+This guide merely seeks to demonstrate how one could utilize and implement this new controller. In other words, this guide alone will not create an experiment.
+:::
+
+If you aren't unfamiliar with creating experiments in Ibex, you should reference the practices and code found in the [SPRT](https://jarediaz.github.io/sprt_guide/) guide.
+
+Specifically, you should focus on implementing consent, instructions, id collection, and running order adjustments. Combining these with our new controller will result in a fully functional experiment.
+
+References may be found in the reference portion of this website.
+
+To get the example code and controller source code, please download them from [here](https://github.com/UMWordLab/ibex_2022_SMS).
+
+## Stimuli Formatting
+
+To be able to utilize the controller, your each row of stimuli should have certain attributes.
+
+Please follow the formatting of the stimuli found in the [Github Repository](https://github.com/UMWordLab/ibex_2022_SMS/blob/main/chunk_includes/Experiment.csv)
+
+::: callout-important
+Please note that the sms attribute is not 0 indexed. This is accounted for by the Template script shown later on.
+:::
+
+You are free to add or remove columns as you see fit for your experiment. However, it is recommended that you maintain the core layout seen in the stimuli linked above.
+
+::: callout-important
+## Renaming Files
+
+In order for the experiment to work, you must **rename your .csv to Experiment.csv**
+:::
+
+## Shuffle Sequencing
+
+Our shuffle sequence can be seen below.
+
+Again, this shuffle sequence is very bare bones and is only meant to demonstrate how one might implement the new controller.
+
+``` javascript
+var shuffleSequence 
+= seq( "setcounter",
+
+      followEachWith("sep", seq(rshuffle(
+                  startsWith("mklo"),
+                  startsWith("gp")))
+                  )
+  );
+```
+
+To make the sequence work for your experiment, please modify the labels inside the startsWith() function to correspond to the "cond1" column of your set of stimuli. Additionally, add or remove calls to startsWith() to work with your set of stimuli.
+
+## Changing Keys
+
+Consider the Template script below:
+
+``` javascript
+Template("Experiment.csv", row => {
+   items.push(
+    [[row.cond1, row.item], "PennController", newTrial(
+        newText("Reminder: Press f for yes, j for no")
+                .print("center at 50vw", "middle at 30vh")
+            ,
+        newController("StopMakingSense", {
+            s: row.sentence,
+            yesKeyCode: "70", 
+            noKeyCode:"74",
+            // - 1 since .csv is not 0 indexed 
+            smsIndex: row.sms ? row.sms - 1 : null
+        })
+            .print("center at 50vw", "middle at auto")
+            .log()
+            .wait()
+    )
+    .log("counter", __counter_value_from_server__)
+    .log("label", row.cond1)
+    .log("latinitem", row.item)
+    ] 
+   );
+   return newTrial('_dummy_',null);
+})
+```
+
+To change which keys do indicate yes and no, please change the **yesKeyCode** and **noKeyCode** attributes. These should be passed the JavaScript Event Key Code for the desired key.
+
+## Interpreting Results
+
+Some of the results can be a little hard to interpret. So, please refer to the following rules.
+
+The **User Response** category is one of the following three options:
+
+1.  Yes
+
+2.  No
+
+3.  NaN
+
+The first two are self defining. We use NaN to indicate that the user did not see the word, that is, they responded no before that word came on screen. As such, there is no or "NaN" response to that word.
+
+The **Correct Response** also follows the above three options.
+
+Again, the first two are self defining. We use NaN to indicate that the user should have NOT seen the word. That is, they continued reading the sentence when they should have stopped. As such, the correct answer doesn't exist (or "NaN").
+
+Note that some implementations may wish to mark these NaNs as "No". This is an equally valid approach, but not how the current controller does it.
+
+**Reading Time** is the same as standard PCIBex experiments. However, words that were not seen will also be given a reading time of NaN.
+
+## Advanced Changes
+
+If you are a more seasoned user of PCIBex, you could also consider making the following changes.
+
+### Underlying Attributes
+
+The new core attribute of this new controller are:
+
+1.  yesKeyCode
+
+2.  noKeyCode
+
+3.  smsIndex. A not-zero-indexed number that indicates where the sentence stops making sense.
+
+When modifying any code in the controller, users should keep these three attributes in mind.
+
+### Indicators for Validity
+
+Currently, our stimuli are formatted in such a way that if a sentence does not have a point where it stops making sense, that is, it makes sense the full way / is valid, we do not put a value in the csv cell.
+
+Other implementations may elect to have a special value to put in the csv to indicate that the sentence entirely makes sense.
+
+The code for this functionality is as shown here.
+
+``` javascript
+// clean input
+// if smsIndex wasn't provided, set it to something arbitrarily large so that all answers are "YES"
+// if it was, do nothing
+
+this.options.smsIndex == undefined
+      ? (this.options.smsIndex = 1000)
+      : (this.options.smsIndex = this.options.smsIndex);
+      this.correctResponses = [];
+```
+
+### User Responses and Unseen Words
+
+The users response to a given word is stored in the 2nd index of smsResults array.
+
+To recap what was outlined in the Interpreting Results section:
+
+If a user indicates that a sentence stops making sense at a certain point, they will not see the entire sentence. As such, the user could have not given a response to that word.
+
+To indicate which words they have not seen, we set the response of the user to those words to NaN
+
+User Response:
+
+``` javascript
+ var userResponse =
+            this.smsResults[i][2] != undefined ? this.smsResults[i][2] : "NaN";
+```
+
+For correct response, anything at or after the SMS index is given a correct response of "No"
+
+Correct Response (Found starting at line 146):
+
+```javascript
+this.correctResponses[j] =
+            j < this.options.smsIndex
+              ? "YES"
+              : "NO";
+```
+
+If you feel that a different mechanism for indicating which words the users have not seen works better for your lab, change this code.

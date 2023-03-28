@@ -1,0 +1,58 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Stop Making Sense Tasks",
+    "section": "",
+    "text": "Welcome! Thank you for your interest in the type template for Stop Making Sense Tasks on PCIBex. This controller was built off of the original DashedSentence Controller by PCIBex.\nThis website is intended to serve as a guide to help users correctly implement our new StopMakingSense controller into their own experiments.\n\n\n\n\n\n\nWarning\n\n\n\nThis guide merely seeks to demonstrate how one could utilize and implement this new controller. In other words, this guide alone will not create an experiment.\n\n\nIf you aren’t unfamiliar with creating experiments in Ibex, you should reference the practices and code found in the SPRT guide.\nSpecifically, you should focus on implementing consent, instructions, id collection, and running order adjustments. Combining these with our new controller will result in a fully functional experiment.\nReferences may be found in the reference portion of this website.\nTo get the example code and controller source code, please download them from here."
+  },
+  {
+    "objectID": "index.html#stimuli-formatting",
+    "href": "index.html#stimuli-formatting",
+    "title": "Stop Making Sense Tasks",
+    "section": "Stimuli Formatting",
+    "text": "Stimuli Formatting\nTo be able to utilize the controller, your each row of stimuli should have certain attributes.\nPlease follow the formatting of the stimuli found in the Github Repository\n\n\n\n\n\n\nImportant\n\n\n\nPlease note that the sms attribute is not 0 indexed. This is accounted for by the Template script shown later on.\n\n\nYou are free to add or remove columns as you see fit for your experiment. However, it is recommended that you maintain the core layout seen in the stimuli linked above.\n\n\n\n\n\n\nRenaming Files\n\n\n\nIn order for the experiment to work, you must rename your .csv to Experiment.csv"
+  },
+  {
+    "objectID": "index.html#shuffle-sequencing",
+    "href": "index.html#shuffle-sequencing",
+    "title": "Stop Making Sense Tasks",
+    "section": "Shuffle Sequencing",
+    "text": "Shuffle Sequencing\nOur shuffle sequence can be seen below.\nAgain, this shuffle sequence is very bare bones and is only meant to demonstrate how one might implement the new controller.\nvar shuffleSequence \n= seq( \"setcounter\",\n\n      followEachWith(\"sep\", seq(rshuffle(\n                  startsWith(\"mklo\"),\n                  startsWith(\"gp\")))\n                  )\n  );\nTo make the sequence work for your experiment, please modify the labels inside the startsWith() function to correspond to the “cond1” column of your set of stimuli. Additionally, add or remove calls to startsWith() to work with your set of stimuli."
+  },
+  {
+    "objectID": "index.html#changing-keys",
+    "href": "index.html#changing-keys",
+    "title": "Stop Making Sense Tasks",
+    "section": "Changing Keys",
+    "text": "Changing Keys\nConsider the Template script below:\nTemplate(\"Experiment.csv\", row => {\n   items.push(\n    [[row.cond1, row.item], \"PennController\", newTrial(\n        newText(\"Reminder: Press f for yes, j for no\")\n                .print(\"center at 50vw\", \"middle at 30vh\")\n            ,\n        newController(\"StopMakingSense\", {\n            s: row.sentence,\n            yesKeyCode: \"70\", \n            noKeyCode:\"74\",\n            // - 1 since .csv is not 0 indexed \n            smsIndex: row.sms ? row.sms - 1 : null\n        })\n            .print(\"center at 50vw\", \"middle at auto\")\n            .log()\n            .wait()\n    )\n    .log(\"counter\", __counter_value_from_server__)\n    .log(\"label\", row.cond1)\n    .log(\"latinitem\", row.item)\n    ] \n   );\n   return newTrial('_dummy_',null);\n})\nTo change which keys do indicate yes and no, please change the yesKeyCode and noKeyCode attributes. These should be passed the JavaScript Event Key Code for the desired key."
+  },
+  {
+    "objectID": "index.html#interpreting-results",
+    "href": "index.html#interpreting-results",
+    "title": "Stop Making Sense Tasks",
+    "section": "Interpreting Results",
+    "text": "Interpreting Results\nSome of the results can be a little hard to interpret. So, please refer to the following rules.\nThe User Response category is one of the following three options:\n\nYes\nNo\nNaN\n\nThe first two are self defining. We use NaN to indicate that the user did not see the word, that is, they responded no before that word came on screen. As such, there is no or “NaN” response to that word.\nThe Correct Response also follows the above three options.\nAgain, the first two are self defining. We use NaN to indicate that the user should have NOT seen the word. That is, they continued reading the sentence when they should have stopped. As such, the correct answer doesn’t exist (or “NaN”).\nNote that some implementations may wish to mark these NaNs as “No”. This is an equally valid approach, but not how the current controller does it.\nReading Time is the same as standard PCIBex experiments. However, words that were not seen will also be given a reading time of NaN."
+  },
+  {
+    "objectID": "index.html#advanced-changes",
+    "href": "index.html#advanced-changes",
+    "title": "Stop Making Sense Tasks",
+    "section": "Advanced Changes",
+    "text": "Advanced Changes\nIf you are a more seasoned user of PCIBex, you could also consider making the following changes.\n\nUnderlying Attributes\nThe new core attribute of this new controller are:\n\nyesKeyCode\nnoKeyCode\nsmsIndex. A not-zero-indexed number that indicates where the sentence stops making sense.\n\nWhen modifying any code in the controller, users should keep these three attributes in mind.\n\n\nIndicators for Validity\nCurrently, our stimuli are formatted in such a way that if a sentence does not have a point where it stops making sense, that is, it makes sense the full way / is valid, we do not put a value in the csv cell.\nOther implementations may elect to have a special value to put in the csv to indicate that the sentence entirely makes sense.\nThe code for this functionality is as shown here.\n// clean input\n// if smsIndex wasn't provided, set it to something arbitrarily large so that all answers are \"YES\"\n// if it was, do nothing\n\nthis.options.smsIndex == undefined\n      ? (this.options.smsIndex = 1000)\n      : (this.options.smsIndex = this.options.smsIndex);\n      this.correctResponses = [];\n\n\nUser Responses and Unseen Words\nThe users response to a given word is stored in the 2nd index of smsResults array.\nTo recap what was outlined in the Interpreting Results section:\nIf a user indicates that a sentence stops making sense at a certain point, they will not see the entire sentence. As such, the user could have not given a response to that word.\nTo indicate which words they have not seen, we set the response of the user to those words to NaN\nUser Response:\n var userResponse =\n            this.smsResults[i][2] != undefined ? this.smsResults[i][2] : \"NaN\";\nFor correct response, anything at or after the SMS index is given a correct response of “No”\nCorrect Response (Found starting at line 146):\nthis.correctResponses[j] =\n            j < this.options.smsIndex\n              ? \"YES\"\n              : \"NO\";\nIf you feel that a different mechanism for indicating which words the users have not seen works better for your lab, change this code."
+  },
+  {
+    "objectID": "about.html#acknowledgements",
+    "href": "about.html#acknowledgements",
+    "title": "Stop Making Sense Tasks",
+    "section": "Acknowledgements",
+    "text": "Acknowledgements\nThis website and the corresponding template code was made as part of the project titled “Computational Psycholinguistics: Creating Online, Accessible Experiment Templates and Coding Standards” by Jared Diaz, supported by Lisa Levinson, PhD and the University of Michigan Undergraduate Research Opportunity Program.\nAdditionally, the framework PCIBex was created by the Zehr & Schwarz (University of Pennsylvania)."
+  },
+  {
+    "objectID": "about.html#citations",
+    "href": "about.html#citations",
+    "title": "Stop Making Sense Tasks",
+    "section": "Citations",
+    "text": "Citations\nZehr, J., & Schwarz, F. (2018). PennController for Internet Based Experiments (IBEX). https://doi.org/10.17605/OSF.IO/MD832"
+  }
+]
